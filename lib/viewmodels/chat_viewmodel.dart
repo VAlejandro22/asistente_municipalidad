@@ -28,11 +28,10 @@ class ChatViewModel extends ChangeNotifier {
   void _addWelcomeMessage() {
     final welcomeMessage = ChatMessage(
       id: _generateMessageId(),
-      content: '''¡Hola! Soy el asistente virtual de la Municipalidad. 
+      content: '''¡Hola! Soy el asistente virtual de la Municipalidad de SAN MIGUEL. 
 
 Puedo ayudarte con:
 • Información sobre trámites y documentos necesarios
-• Horarios de recolección de residuos
 • Ordenanzas y normativas municipales
 • Procedimientos administrativos
 • Y mucho más...

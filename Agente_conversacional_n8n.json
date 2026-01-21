@@ -1,0 +1,1310 @@
+{
+  "name": "Agente conversacional",
+  "nodes": [
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3408,
+        2864
+      ],
+      "id": "ae1471df-2147-43d2-9ff4-9e69ca5725e7",
+      "name": "Embeddings OpenAI",
+      "credentials": {
+        "openAiApi": {
+          "id": "FnGS5Jhx56bncQXg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.documentDefaultDataLoader",
+      "typeVersion": 1,
+      "position": [
+        3984,
+        2768
+      ],
+      "id": "b72c0f47-bfdb-45b6-a6f1-4eaa35ce8aa0",
+      "name": "Default Data Loader"
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "text",
+              "separateBy": "other",
+              "customSeparator": "##SPLIT##"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1.1,
+      "position": [
+        3248,
+        2384
+      ],
+      "id": "826cd24e-48fb-4599-b84c-898e71a1da14",
+      "name": "Summarize"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=<chunk>\n{{ $json.chunk }}\n</chunk>",
+        "messages": {
+          "messageValues": [
+            {
+              "message": "=# Prompt\n\n## Identidad del agente\nEres un especialista en optimización de sistemas RAG (Recuperación Aumentada por Generación). Tu misión es enriquecer fragmentos de texto (chunks) con contexto relevante y corregir incompletitudes mínimas para maximizar su efectividad en búsquedas semánticas.\n\n## Contexto del documento\nEl siguiente documento es la fuente completa de todos los chunks que procesarás:\n\n```\n{{ $(\"PDF TO DATA\").item.json.data }}\n```\n\n## Instrucciones principales\n\nPara cada chunk que recibas, realizarás dos tareas específicas:\n\n### Tarea 1: Generación de contexto enriquecido\nRedacta un párrafo contextual (50-150 palabras) que:\n- Identifique la sección/capítulo del documento\n- Describa el tema principal y subtemas relevantes\n- Incluya palabras clave semánticamente importantes\n- Explique la función/propósito del fragmento\n- Mencione relaciones con otras secciones si es relevante\n\n### Tarea 2: Preservación y corrección selectiva\nDevuelve el chunk original, corrigiéndolo ÚNICAMENTE si presenta:\n\n**Criterios de corrección obligatoria:**\n- Oraciones cortadas que no terminan naturalmente\n- Tablas Markdown con filas/columnas incompletas o sintaxis rota\n- Referencias truncadas (\"como se ve en la Figura...\" sin número)\n- Datos numéricos parciales (porcentajes, fechas, cantidades)\n- Listas Markdown numeradas/con viñetas incompletas\n- Bloques de código con sintaxis ``` incompleta\n- Enlaces Markdown malformados `[texto](` sin cerrar\n- Encabezados Markdown cortados\n\n**Preservar siempre:**\n- Estilo y tono original\n- Terminología específica\n- Estructura de párrafos\n- Formato de tablas completas\n\n## Reglas de formato\n\n### Formato de salida obligatorio:\n```\n[Párrafo de contexto sin encabezados ni referencias directas al chunk]\n\n[Chunk original o corregido según criterios anteriores]\n```\n\n### Restricciones:\n- No agregues comentarios, explicaciones o metadatos\n- No uses encabezados como \"Contexto:\" o \"Chunk:\"\n- No alteres el contenido más allá de las correcciones especificadas\n- Mantén la longitud del contexto entre 50-150 palabras\n\n## Casos especiales\n\n**Documentos largos:** Si el documento excede 10,000 palabras, enfócate en el contexto inmediato (sección actual + secciones adyacentes).\n\n**Chunks técnicos:** Para código, fórmulas o tablas complejas, el contexto debe explicar su propósito funcional sin reproducir el contenido técnico.\n\n**Referencias cruzadas:** Si el chunk referencia otras partes del documento, incluye esa información en el contexto para mantener coherencia semántica.\n\n## Manejo específico de elementos Markdown\n\n### Tablas en Markdown\n**IMPORTANTE:** Todos los documentos están en formato Markdown. Para tablas, aplica estas reglas:\n\n**Contexto para tablas:**\n- Describe qué tipo de datos presenta la tabla\n- Menciona las columnas principales y su propósito\n- Explica cómo se relaciona con el contenido circundante\n- Identifica patrones, tendencias o datos destacados\n- Especifica si es una tabla de referencia, comparativa, o resultados\n\n**Corrección de tablas incompletas:**\n```markdown\n# Si encuentras:\n| Columna1 | Columna2 |\n|----------|----------|\n| Dato1    | Dato2    |\n| Dato3    |          |  ← Fila incompleta\n\n# Completa usando el documento fuente:\n| Columna1 | Columna2 |\n|----------|----------|\n| Dato1    | Dato2    |\n| Dato3    | Dato4    |\n```\n\n**Preservar formato Markdown:**\n- Mantén la sintaxis exacta de separadores `|` y `---`\n- Conserva el alineamiento de columnas\n- No alteres encabezados de tabla existentes\n- Preserva cualquier formato interno (negrita, cursiva, enlaces)\n\n### Otros elementos Markdown\n\n**Listas:** \n- Preserva numeración (`1.`, `2.`) o viñetas (`-`, `*`)\n- Completa listas cortadas manteniendo el formato original\n- Mantén niveles de anidación con espacios/tabs\n\n**Código:**\n- Preserva bloques de código con ``` o `\n- No modifiques el contenido del código\n- El contexto debe explicar qué hace el código, no reproducirlo\n\n**Enlaces y referencias:**\n- Formato: `[texto](url)` o `[texto][referencia]`\n- Si está incompleto, busca la referencia completa en el documento\n- Preserva la sintaxis exacta de Markdown\n\n**Encabezados:**\n- Mantén niveles (`#`, `##`, `###`, etc.)\n- Si un chunk inicia con encabezado cortado, complétalo desde el documento"
+            }
+          ]
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.6,
+      "position": [
+        2928,
+        2384
+      ],
+      "id": "45b5a15c-c05c-4339-9a0c-06c5ea9d405b",
+      "name": "Add Context"
+    },
+    {
+      "parameters": {
+        "separator": "##SPLIT##"
+      },
+      "type": "@n8n/n8n-nodes-langchain.textSplitterCharacterTextSplitter",
+      "typeVersion": 1,
+      "position": [
+        4048,
+        2960
+      ],
+      "id": "2f7091d5-4c30-49d5-82cf-b443e795b174",
+      "name": "Character Text Splitter"
+    },
+    {
+      "parameters": {
+        "operation": "pdf",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        2208
+      ],
+      "id": "ba0b8f9c-3709-42a2-8fe6-1336b6aaab8a",
+      "name": "Extract from PDF"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n \"data\": {{JSON.stringify($json.data)}}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2224,
+        2240
+      ],
+      "id": "871312d7-a917-4440-a0ad-60c4af2e9515",
+      "name": "PDF TO DATA"
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{ $binary.data.fileExtension }}",
+                    "rightValue": "pdf",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "64bba165-0d1c-4726-89c8-c2b6dca27d8f"
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "PDF"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "c85fb22e-0117-4a8e-b877-2b0af70a0d11",
+                    "leftValue": "={{ $binary.data.fileExtension }}",
+                    "rightValue": "=txt",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "TXT"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "a8fc55f3-900f-4a1f-b88a-0127bf19c937",
+                    "leftValue": "={{ $binary.data.fileExtension }}",
+                    "rightValue": "csv",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "CSV"
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 2
+                },
+                "conditions": [
+                  {
+                    "id": "60006fa0-f791-4b17-8c37-6edcd3842b60",
+                    "leftValue": "={{ $binary.data.fileExtension }}",
+                    "rightValue": "md",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              },
+              "renameOutput": true,
+              "outputKey": "Markdown"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3.2,
+      "position": [
+        1440,
+        2400
+      ],
+      "id": "86268fc4-6464-4610-a4b8-4c8ce275a9cd",
+      "name": "CR SWITCH"
+    },
+    {
+      "parameters": {
+        "mode": "raw",
+        "jsonOutput": "={\n  \"data\": {{ JSON.stringify($json.data) }}\n}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2384,
+        2368
+      ],
+      "id": "6ec35d69-3bd5-496e-ae9c-2ef602f5d696",
+      "name": "Document Data"
+    },
+    {
+      "parameters": {
+        "jsCode": "const maxChunkSize = 1000;\nconst chunkOverlap = 100;\n\nconst text = $json.data;\n\n// Función para dividir el texto sin cortar palabras\nfunction splitTextByWords(text, maxChunkSize, chunkOverlap) {\n\tconst words = text.split(/\\s+/); // divide por espacios y saltos de línea\n\tconst chunks = [];\n\n\tlet chunk = '';\n\tfor (let i = 0; i < words.length; i++) {\n\t\tconst word = words[i];\n\t\tif ((chunk + ' ' + word).length <= maxChunkSize) {\n\t\t\tchunk += (chunk ? ' ' : '') + word;\n\t\t} else {\n\t\t\tchunks.push(chunk.trim());\n\n\t\t\t// Generar la superposición basada en palabras desde el final del chunk anterior\n\t\t\tconst chunkWords = chunk.split(/\\s+/);\n\t\t\tconst overlapWords = chunkWords.slice(-Math.floor(chunkOverlap / 5)); // estimamos 5 caracteres por palabra\n\t\t\tchunk = overlapWords.join(' ') + ' ' + word;\n\t\t}\n\t}\n\tif (chunk) chunks.push(chunk.trim());\n\n\treturn chunks;\n}\n\nconst resultChunks = splitTextByWords(text, maxChunkSize, chunkOverlap);\n\nreturn resultChunks.map((chunk, index) => ({\n\tjson: {\n\t\tchunkIndex: index + 1,\n\t\ttext: chunk\n\t}\n}));\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2560,
+        2384
+      ],
+      "id": "d6ac9cfc-62d6-4015-9752-efd2923eff7d",
+      "name": "Recursive Splitter"
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "text",
+        "options": {
+          "destinationFieldName": "chunk"
+        }
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2720,
+        2384
+      ],
+      "id": "d68a8ee8-ace6-476a-acd5-5f3fa011cfa3",
+      "name": "Split Chunks"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-4.1-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-4.1-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2880,
+        2576
+      ],
+      "id": "4882b095-abee-4bd9-a1d9-2697b9c3e9af",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "FnGS5Jhx56bncQXg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        1040,
+        2416
+      ],
+      "id": "0f0a1cb5-bd1e-49d6-a3e5-5641af57367f",
+      "name": "When clicking ‘Test workflow’"
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "tableName": {
+          "__rl": true,
+          "value": "documents",
+          "mode": "list",
+          "cachedResultName": "documents"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreSupabase",
+      "typeVersion": 1.1,
+      "position": [
+        3504,
+        2640
+      ],
+      "id": "34955ef5-5fbb-4fa6-93b0-bea603bb6bf7",
+      "name": "Supabase Vector Store",
+      "credentials": {
+        "supabaseApi": {
+          "id": "cdvkLWNHBA2y1xfO",
+          "name": "Supabase account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "operation": "text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1888,
+        2416
+      ],
+      "id": "ec06c1fd-0c44-47b0-84e4-75bc990c0f38",
+      "name": "Extract from TXT"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "n8n-nodes-base.extractFromFile",
+      "typeVersion": 1,
+      "position": [
+        1840,
+        2608
+      ],
+      "id": "db3b1ea1-f658-4a2c-b2a0-2b6c15a0a684",
+      "name": "Extract from File"
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "6163dc83-01b5-4657-9ae5-b61e9fdc79cb",
+              "name": "text",
+              "value": "={{ $json.data[1].text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        2336,
+        2928
+      ],
+      "id": "a5781b43-575c-464a-a247-3eb1eaf62da5",
+      "name": "Edit Fields2"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "mode": "list",
+          "value": "gpt-4o-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        1504,
+        3104
+      ],
+      "id": "2999bf14-37f6-459b-a0df-211513556784",
+      "name": "OpenAI Chat Model2",
+      "credentials": {
+        "openAiApi": {
+          "id": "FnGS5Jhx56bncQXg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "assignments": {
+          "assignments": [
+            {
+              "id": "e8926558-d223-465d-871e-e2e72a0988b7",
+              "name": "text",
+              "value": "={{ $json.text }}",
+              "type": "string"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.set",
+      "typeVersion": 3.4,
+      "position": [
+        1840,
+        2928
+      ],
+      "id": "406d7d8c-3db5-4a81-9e44-a9825e704278",
+      "name": "Edit Fields4"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "claude-opus-4-20250514",
+          "mode": "list",
+          "cachedResultName": "Claude Opus 4"
+        },
+        "options": {
+          "thinking": true
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatAnthropic",
+      "typeVersion": 1.3,
+      "position": [
+        2000,
+        3104
+      ],
+      "id": "1e43931b-7f0b-4098-aca4-215fcaf782c1",
+      "name": "Anthropic Chat Model",
+      "disabled": true
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "organized_text",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [
+        2864,
+        2928
+      ],
+      "id": "26753a2c-3189-4840-a45e-f6d846219b3c",
+      "name": "Split Out"
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "organized_text",
+              "separateBy": "other",
+              "customSeparator": "##SPLIT##"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1.1,
+      "position": [
+        3040,
+        2928
+      ],
+      "id": "e219112b-8871-4459-8503-d26e67ec2777",
+      "name": "Summarize1"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# PROMPT PARA ANÁLISIS ESTRATÉGICO DE CSV PARA RAG\n\nEres un experto en sistemas RAG y optimización de datos para búsqueda semántica. Analiza el siguiente reporte de estructura CSV y genera un análisis estratégico que maximice la calidad de los chunks para vectorización.\n\n## RESTRICCIONES TÉCNICAS CRÍTICAS\n- **LÍMITE ABSOLUTO**: Cada chunk final debe ser ≤1500 caracteres de texto plano\n- **FORMATO OUTPUT**: Texto consolidado (no JSON) para vectorización directa\n- **IMPLEMENTACIÓN**: El código será ejecutado en n8n con JavaScript\n\n## ANÁLISIS REQUERIDO\n\n### 1. **IDENTIFICACIÓN DEL DOMINIO Y TIPO DE DATASET**\nClasifica el dataset en una de estas categorías y ajusta tu estrategia:\n- **CATÁLOGO**: Productos, servicios, inventarios → chunks por categoría/tipo\n- **TRANSACCIONAL**: Ventas, pedidos, logs → chunks por período/estado\n- **RELACIONAL**: Clientes, contactos, empleados → chunks por entidad individual\n- **ANALÍTICO**: Métricas, KPIs, reportes → chunks por dimensión/agregación\n- **DOCUMENTAL**: Descripciones, contenido largo → chunks por tema/sección\n- **OTRO**: Especifica tipo y estrategia custom\n\n### 2. **CÁLCULO DE CAPACIDAD POR CHUNK**\nBasándote en los campos y su longitud promedio:\n- **Caracteres por registro**: Estima suma de campos relevantes\n- **Registros por chunk**: 1500 / caracteres_por_registro\n- **Overhead de formato**: Reserva ~200 chars para headers y metadata\n- **Capacidad real**: Ajusta para el peor caso (registros más largos)\n\n### 3. **ESTRATEGIA DE CHUNKING ÓPTIMA**\n\n#### TIPOS DE CHUNKS DISPONIBLES:\n- **INDIVIDUAL**: 1 registro = 1 chunk (para entidades complejas >500 chars)\n- **AGRUPADO**: N registros relacionados (categoría, marca, período)\n- **COMPARATIVO**: Top-N o destacados (mejores, más vendidos, críticos)\n- **RESUMEN**: Agregaciones estadísticas (promedios, totales, tendencias)\n- **HÍBRIDO**: Combinación según densidad de datos\n\n#### DECISIÓN DE AGRUPACIÓN:\n- Si registros <100 chars → AGRUPADO obligatorio\n- Si registros >500 chars → INDIVIDUAL o máx 2-3 por chunk\n- Si hay jerarquías naturales → AGRUPADO por nivel superior\n- Si hay pocos registros totales (<50) → considera UN SOLO CHUNK\n\n### 4. **OPTIMIZACIÓN SEMÁNTICA Y MANEJO DE PRECIOS**\n\n#### ENRIQUECIMIENTO DE CONTENIDO:\n- **Contexto del dominio**: Términos que un usuario esperaría encontrar\n- **Expansión semántica**: Sinónimos, variaciones, traducciones comunes\n- **Preguntas implícitas**: \"¿Cuál es...?\", \"¿Dónde encontrar...?\"\n- **Casos de uso**: Frases de búsqueda típicas del dominio\n\n#### INTEGRACIÓN DE PRECIOS (SI APLICA):\n- **Formato de precio**: CADA item debe mostrar SU precio individual\n- **Ejemplo correcto**: \"iPhone 14 $24,999, Samsung S23 $19,999, Xiaomi $8,999\"\n- **Ejemplo incorrecto**: \"Smartphones desde $8,999 hasta $24,999\"\n- **Sin precio**: Indicar claramente \"Producto X (consultar precio)\"\n\n#### ESTRUCTURA DEL CHUNK:\n```\n[ENCABEZADO con tipo y contexto - 50-100 chars]\n[CONTENIDO PRINCIPAL con items y precios individuales - 800-1200 chars]\n[METADATA INLINE con rangos de precio si aplica - 100-200 chars]\n[PALABRAS CLAVE de búsqueda - 50-100 chars]\n```\n\n### 5. **METADATA Y FILTRADO**\n\n#### CLASIFICACIÓN DE CAMPOS:\n- **CONTENIDO PRIMARIO**: Información que responde queries directas\n- **CONTENIDO CONTEXTUAL**: Enriquece pero no es búsqueda principal  \n- **METADATA PURA**: Solo para filtros, no para matching semántico\n- **IGNORAR**: Campos técnicos sin valor de búsqueda\n\n#### METADATA ESPECÍFICA DE PRECIOS (SI DETECTADOS):\n- **price_range**: Definir categorías apropiadas (economico/medio/premium/lujo)\n- **has_price**: Indicador booleano de disponibilidad\n- **min_price/max_price**: Rangos numéricos para filtrado\n- **Segmentación**: Definir cortes de precio relevantes al dominio\n\n#### TRANSFORMACIONES RECOMENDADAS:\n- Rangos numéricos → categorías textuales (barato/medio/caro)\n- Fechas → períodos relativos (este mes, trimestre pasado)\n- Booleanos → frases naturales (\"disponible\" vs true)\n- Códigos → nombres descriptivos\n- **Precios → Formato consistente** ($X,XXX.XX MXN)\n\n## DATOS A ANALIZAR\n{{ $json.analisisCompleto.reporteTexto }}\n\n## INFORMACIÓN ADICIONAL DISPONIBLE\n- **Campos detectados**: {{ $json.campos }}\n- **Campos de precio identificados**: {{ $json.analisisCompleto.resumen.camposIdentificados.precios }}\n- **Campos categóricos**: {{ $json.analisisCompleto.resumen.camposCategoricos }}\n- **Total de registros**: {{ $json.analisisCompleto.resumen.totalRegistros }}\n\n## FORMATO DE RESPUESTA REQUERIDO\n\n### SECCIÓN 1: DIAGNÓSTICO DEL DATASET (75-100 palabras)\n- Tipo de dataset: [CATEGORÍA]\n- Volumen: [total registros] registros, ~[X] chars promedio c/u\n- Entidad principal: [qué representa cada fila]\n- Complejidad: [simple/media/compleja] por [razón]\n- Reto principal: [qué dificulta el chunking]\n\n### SECCIÓN 2: ESTRATEGIA DE IMPLEMENTACIÓN (150-200 palabras)\n```yaml\nCONFIGURACIÓN:\n  tipo_chunk: [TIPO] # con justificación basada en cálculos\n  registros_por_chunk: [N] # basado en límite 1500 chars\n  agrupación_primaria: [campo] # el más selectivo\n  agrupación_secundaria: [campo] # si aplica\n  \nCÁLCULOS:\n  chars_por_registro: [promedio estimado]\n  overhead_formato: [reservado para structure]\n  capacidad_efectiva: [registros que caben]\n  total_chunks_estimados: [cantidad final]\n\nCONTENIDO_CHUNK:\n  línea_1: \"TIPO: [tipo] | [contexto]\"\n  línea_2: \"[campo_principal]: [valor]\"\n  contenido_principal: # Debe incluir precios si existen\n    - Sin precios: \"[item1], [item2], [item3]\"\n    - Con precios: \"[item1] $[precio1], [item2] $[precio2], [item3] $[precio3]\"\n  metadata_inline: \"[filtro1]: [valor] | [filtro2]: [valor]\"\n  keywords: \"[términos de búsqueda relevantes]\"\n\nMANEJO_DE_PRECIOS: # SI SE DETECTAN CAMPOS DE PRECIO\n  campo_precio_principal: [campo detectado]\n  formato_display: \"individual_por_item\" # NO rangos generales\n  categorización: [economico: <X, medio: X-Y, premium: >Y]\n  metadata_precio: \n    - price_range: \"[categoria]\" # string\n    - has_price: true/false # booleano\n    - min_price: [número] # número\n    - max_price: [número] # número\n```\n\n### SECCIÓN 3: INSTRUCCIONES DE CÓDIGO (100-125 palabras)\nPseudocódigo específico para el implementador:\n```javascript\n// 1. Agrupar registros por [campo]\n// 2. Para cada grupo:\n//    - Limitar a [N] registros máximo\n//    - Construir texto con formato:\n//      * Encabezado: [formato específico]\n//      * Contenido: [campos] unidos con [separador]\n//    - Validar longitud < 1500\n//    - Si excede, dividir en sub-chunks\n// 3. Generar metadata objeto con: {campos}\n// 4. Casos especiales: [manejo de nulls, etc]\n```\n\n## PRINCIPIOS GUÍA\n1. **Pragmatismo**: Si el dataset es pequeño (<30 registros), un solo chunk puede ser óptimo\n2. **Densidad**: Maximiza información útil por carácter\n3. **Naturalidad**: Los chunks deben leerse como texto coherente\n4. **Recuperabilidad**: Optimiza para las queries más probables del dominio\n5. **Implementabilidad**: Cada instrucción debe ser ejecutable sin ambigüedad\n\n---\n\nIMPORTANTE: Tu análisis determinará la calidad de búsqueda de todo el sistema. Sé específico, pragmático y siempre respeta el límite de 1500 caracteres.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        1520,
+        2928
+      ],
+      "id": "a94b5798-a3c0-4eca-8298-173760581d6c",
+      "name": "LLM ANALISTA"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=# PROMPT PARA LLM - GENERADOR UNIVERSAL DE CÓDIGO RAG\n\n## CONTEXTO\nEres un experto en sistemas RAG (Retrieval Augmented Generation) y necesitas generar código JavaScript para n8n que convierta CUALQUIER tipo de datos CSV en chunks optimizados para vectorización y consultas de LLM.\n\n## ESTRATEGIA DEFINIDA POR EL ANALISTA\n{{ $json.text }}\n\n## TAREA\nGenera código JavaScript completo y funcional que:\n1. Procese datos CSV usando `const items = $('Extract from File').all();`\n2. Implemente EXACTAMENTE la estrategia definida por el analista\n3. Se adapte automáticamente a cualquier estructura de datos\n4. Maneje campos de precio si existen\n5. Genere chunks y metadata según las especificaciones del analista\n\n## CAMPOS DISPONIBLES EN EL CSV\n{{ $('Transformador de CSV').item.json.campos }}\n\n## ESPECIFICACIONES TÉCNICAS UNIVERSALES\n\n### ESTRUCTURA BASE OBLIGATORIA:\n```javascript\nconst items = $('Extract from File').all(); \n// Tu código aquí\nreturn chunks.map(chunk => ({ json: chunk }));\n```\n\n### FORMATO DE CHUNK UNIVERSAL:\n```javascript\n{\n  id: \"chunk_X\",\n  type: \"[tipo_definido_por_analista]\",\n  content: \"[texto según formato del analista]\",\n  metadata: {\n    // Campos definidos en MANEJO_DE_PRECIOS o METADATA del analista\n    // Siempre incluir:\n    timestamp: new Date().toISOString(),\n    chunk_size: content.length,\n    record_count: [número de registros en el chunk]\n  }\n}\n```\n\n## INSTRUCCIONES DE IMPLEMENTACIÓN DINÁMICA\n\n### 1. EXTRAER PARÁMETROS DE LA ESTRATEGIA\nLee cuidadosamente la estrategia del analista y extrae:\n- `tipo_chunk` de CONFIGURACIÓN\n- `registros_por_chunk` o `capacidad_efectiva` \n- `agrupación_primaria` y `agrupación_secundaria` si existen\n- Formato específico de `CONTENIDO_CHUNK`\n- Campos de `MANEJO_DE_PRECIOS` si aplica\n- Instrucciones específicas de la SECCIÓN 3\n\n### 2. DETECCIÓN AUTOMÁTICA DE CAMPOS\n```javascript\n// Mapeo universal de tipos de campos\nconst tiposCampos = {\n  identificadores: ['id', '_id', 'code', 'sku', 'key', 'identifier'],\n  nombres: ['name', 'title', 'nombre', 'product_name', 'item_name'],\n  precios: ['price', 'cost', 'precio', 'value', 'amount', 'sale_price'],\n  cantidades: ['quantity', 'stock', 'count', 'inventory', 'cantidad'],\n  categorias: ['category', 'type', 'class', 'group', 'tipo'],\n  descripciones: ['description', 'details', 'info', 'about', 'summary'],\n  estados: ['status', 'available', 'active', 'enabled', 'is_'],\n  fechas: ['date', 'created', 'updated', 'fecha', '_at'],\n  calificaciones: ['rating', 'score', 'review', 'stars', 'calificacion']\n};\n```\n\n### 3. ADAPTACIÓN AL TIPO DE DATASET\nBasándote en el \"Tipo de dataset\" del DIAGNÓSTICO:\n- **CATÁLOGO**: Agrupar por categoría/tipo, incluir precios si existen\n- **TRANSACCIONAL**: Agrupar por período/estado, incluir totales\n- **RELACIONAL**: Chunks individuales por entidad\n- **ANALÍTICO**: Agrupar por dimensiones, incluir métricas\n- **DOCUMENTAL**: Chunks por secciones temáticas\n- **OTRO**: Seguir instrucciones específicas del analista\n\n### 4. IMPLEMENTACIÓN DEL FORMATO DE CONTENIDO\nUsa EXACTAMENTE el formato definido en `CONTENIDO_CHUNK` de la estrategia:\n- Si especifica líneas numeradas, respétalas\n- Si incluye ejemplos de formato, síguelos literalmente\n- Si menciona separadores específicos (\", \" o \" | \"), úsalos\n\n**IMPORTANTE**: El contenido del chunk debe incluir TODAS las líneas especificadas en CONTENIDO_CHUNK:\n- línea_1, línea_2, contenido_principal, metadata_inline, keywords\n- Estas son PARTE DEL CONTENIDO, no van en el objeto metadata\n- El contenido es un string de múltiples líneas con saltos de línea (\\n)\n\n**EJEMPLO DE CONTENIDO CORRECTO**:\n```\nTIPO: CATEGORÍA | Productos de Proteína\ncategory: Proteína\nWhey Gold $65.99, Creatine Pure $29.99, BCAA Elite $45.50, Protein Bar $24.99\ncategory: Proteína | available: true\nkeywords: productos, proteína, precio, comprar\n```\n\n### 5. MANEJO INTELIGENTE DE PRECIOS (SI APLICA)\nSolo si el analista detectó campos de precio:\n```javascript\n// Usar el campo definido en campo_precio_principal\n// Aplicar la categorización exacta definida en MANEJO_DE_PRECIOS\n// Formatear según las instrucciones (individual_por_item, etc.)\n```\n\n### 6. VALIDACIONES UNIVERSALES\n```javascript\n// MAXIMIZAR uso del espacio: intentar incluir tantos registros como sea posible\n// Solo reducir si excede 1500 caracteres\nif (content.length > 1500) {\n  // Reducir número de registros EN INCREMENTOS, no uno por uno\n  // Ejemplo: si tienes 6 y no caben, prueba con 4, no con 5\n}\nif (chunks.length >= 100) {\n  // Detener procesamiento\n  break; // usar break, no return\n}\n```\n\n**OPTIMIZACIÓN DE AGRUPACIÓN**:\n- SIEMPRE intenta llenar chunks al máximo permitido\n- Si un grupo tiene pocos items, combínalo con el siguiente\n- Objetivo: minimizar número total de chunks maximizando contenido por chunk\n\n## PLANTILLA DE CÓDIGO ADAPTATIVA\n\n```javascript\nconst items = $('Extract from File').all();\nconst chunks = [];\nlet chunkId = 1;\n\n// PASO 1: Identificar campos disponibles\nconst campos = items.length > 0 ? Object.keys(items[0].json) : [];\n\n// PASO 2: Detectar tipos de campos automáticamente\nfunction detectarTipoCampo(nombreCampo) {\n  const campoLower = nombreCampo.toLowerCase();\n  // [Implementar detección basada en tiposCampos]\n}\n\n// PASO 3: Extraer configuración de la estrategia\n// [IMPORTANTE: Debes parsear la estrategia del analista aquí]\n// Ejemplo: Si el analista dice \"agrupación_primaria: category\"\n// entonces buscar el campo que sea tipo 'categoria'\n\n// PASO 4: Implementar lógica de chunking según tipo_chunk\n// - Si es AGRUPADO: agrupar por campo primario\n// - Si es INDIVIDUAL: un registro por chunk\n// - Si es COMPARATIVO: seleccionar top N\n// - Si es RESUMEN: crear agregaciones\n\n// PASO 5: Generar chunks según formato especificado\n// CRÍTICO: El content debe ser un string que incluya TODAS las líneas de CONTENIDO_CHUNK:\n// línea_1 + \"\\n\" + línea_2 + \"\\n\" + contenido_principal + \"\\n\" + metadata_inline + \"\\n\" + keywords\n\n// PASO 6: Calcular metadata según especificaciones\n// La metadata del objeto chunk es DIFERENTE al metadata_inline del contenido\n// metadata_inline va DENTRO del content como texto\n// metadata del chunk va en el objeto metadata\n\n// PASO 7: Optimizar agrupación\n// Si un grupo tiene menos items que capacidad_efectiva, intentar combinar con siguiente grupo\n// Objetivo: chunks llenos, no chunks pequeños\n\nreturn chunks.map(chunk => ({ json: chunk }));\n```\n\n## PRINCIPIOS DE ADAPTACIÓN\n\n1. **FIDELIDAD A LA ESTRATEGIA**: Implementa EXACTAMENTE lo que dice el analista\n2. **DETECCIÓN INTELIGENTE**: Identifica campos por patrones si no coinciden exactamente\n3. **ROBUSTEZ**: Maneja casos edge (campos nulos, formatos inesperados)\n4. **UNIVERSALIDAD**: El código debe funcionar con CUALQUIER CSV\n5. **VALIDACIÓN**: Siempre verificar límites antes de crear chunks\n\n## MANEJO DE CASOS ESPECIALES\n\n- **Sin categorías**: Usar agrupación alternativa o chunks secuenciales\n- **Sin precios**: Omitir secciones de precio completamente\n- **Pocos registros**: Considerar un único chunk si < 10 registros\n- **Muchos campos**: Priorizar según importancia mencionada por analista\n- **Datos largos**: Truncar inteligentemente respetando límites\n- **Valores booleanos**: \n  - `true/false` → mostrar como \"disponible/no disponible\" o \"sí/no\"\n  - `1/0` → interpretar como true/false\n  - Para `is_available`: true = \"disponible\", false = \"no disponible\"\n- **Optimización de espacio**:\n  - SIEMPRE intentar llenar chunks cerca del límite\n  - Combinar grupos pequeños antes de crear chunks parciales\n  - Preferir 20 chunks llenos sobre 70 chunks pequeños\n\n## IMPORTANTE\n- El código debe ser 100% funcional y ejecutable\n- Debe adaptarse a CUALQUIER estructura de CSV\n- Debe seguir EXACTAMENTE la estrategia del analista\n- NO uses placeholders o comentarios \"// implementar aquí\"\n- Maneja TODOS los casos edge posibles\n\n## REGLAS CRÍTICAS\n1. **NO incluyas marcadores de código** como ```javascript\n2. **Comienza directamente** con: const items = $('Extract from File').all();\n3. **Implementa la estrategia EXACTA** del analista\n4. **Adapta automáticamente** a los campos disponibles\n5. **Genera código COMPLETO** sin placeholders\n6. **Incluye TODA la lógica** necesaria\n7. **Responde ÚNICAMENTE con código JavaScript**\n\nGENERA EL CÓDIGO JAVASCRIPT COMPLETO AHORA.",
+        "batching": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.chainLlm",
+      "typeVersion": 1.7,
+      "position": [
+        2016,
+        2928
+      ],
+      "id": "fb1d3048-e51e-4c3d-8e69-e2ecd6b5b074",
+      "name": "LLM CODIGO"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Obtener el código generado por el LLM desde el nodo anterior\nconst llmResponse = $input.first().json.text;\n\n// Limpiar y extraer el código JavaScript\nlet generatedCode = llmResponse.trim();\n\n// Remover marcadores de código si existen\ngeneratedCode = generatedCode.replace(/^```javascript?\\n?|```$/g, '');\n\n// Verificar que el código comience correctamente\nif (!generatedCode.includes(\"const items = $('Extract from File').all();\")) {\n  throw new Error('Código generado no tiene la estructura esperada. Debe comenzar con: const items = $(\\'Extract from File\\').all();');\n}\n\n// Ejecutar el código generado de forma segura\ntry {\n  // Crear el contexto necesario para la ejecución\n  const executeChunking = () => {\n    // Aquí se ejecutará el código generado\n    // El código generado debe poder acceder a $ y otros contextos de n8n\n    \n    // Crear función que simule el entorno de n8n\n    const mockContext = (nodeName) => {\n      if (nodeName === 'Extract from File') {\n        return {\n          all: () => $('Extract from File').all()\n        };\n      }\n      // Para otros nodos, usar el contexto real de n8n\n      return $(nodeName);\n    };\n    \n    // Reemplazar las llamadas a $ en el código generado\n    // para usar nuestro contexto mockeado\n    let executableCode = generatedCode;\n    \n    // Reemplazar $('Extract from File') con llamadas al contexto real\n    executableCode = executableCode.replace(\n      /\\$\\('Extract from File'\\)/g, \n      \"mockContext('Extract from File')\"\n    );\n    \n    // Envolver el código en una función que retorne el resultado\n    const wrappedCode = `\n      const mockContext = ${mockContext.toString()};\n      ${executableCode}\n    `;\n    \n    // Ejecutar el código usando Function constructor de forma más segura\n    const executeFunction = new Function(wrappedCode + '; return chunks.map(chunk => ({ json: chunk }));');\n    return executeFunction();\n  };\n  \n  // Ejecutar y obtener resultado\n  const result = executeChunking();\n  \n  // Validar que el resultado tenga el formato esperado\n  if (!Array.isArray(result)) {\n    throw new Error('El código generado no retornó un array válido');\n  }\n  \n  // Validar estructura de chunks\n  for (let i = 0; i < Math.min(result.length, 3); i++) {\n    const chunk = result[i];\n    if (!chunk.json || !chunk.json.id || !chunk.json.content || !chunk.json.metadata) {\n      throw new Error(`Chunk ${i} no tiene la estructura esperada (id, content, metadata)`);\n    }\n  }\n  \n  // Log para debugging\n  console.log(`✅ Código ejecutado exitosamente. Generados ${result.length} chunks`);\n  \n  return result;\n  \n} catch (executionError) {\n  console.error('❌ Error ejecutando código generado:', executionError.message);\n  \n  // Fallback más seguro: intentar ejecución directa solo en desarrollo\n  try {\n    console.log('🔄 Intentando ejecución alternativa...');\n    \n    // Método alternativo: eval en contexto controlado\n    const safeEval = () => {\n      // Crear las variables que el código generado espera\n      const items = $('Extract from File').all();\n      const chunks = [];\n      let chunkId = 1;\n      \n      // Remover la primera línea del código generado ya que definimos items arriba\n      let codeWithoutFirstLine = generatedCode.replace(/const items = \\$\\('Extract from File'\\)\\.all\\(\\);\\s*/, '');\n      \n      // Evaluar el resto del código\n      eval(codeWithoutFirstLine);\n      \n      // Retornar el resultado esperado\n      return chunks.map(chunk => ({ json: chunk }));\n    };\n    \n    const fallbackResult = safeEval();\n    console.log(`⚠️ Ejecución alternativa exitosa. Generados ${fallbackResult.length} chunks`);\n    return fallbackResult;\n    \n  } catch (fallbackError) {\n    // Si todo falla, proporcionar información detallada para debugging\n    const errorInfo = {\n      json: {\n        error: 'CÓDIGO_NO_EJECUTABLE',\n        message: `No se pudo ejecutar el código generado: ${executionError.message}`,\n        fallback_error: fallbackError.message,\n        generated_code_preview: generatedCode.substring(0, 500) + '...',\n        suggestions: [\n          'Verificar que el LLM generó código sintácticamente correcto',\n          'Revisar que no hay dependencias externas no disponibles',\n          'Validar que la estructura del CSV es la esperada'\n        ]\n      }\n    };\n    \n    console.error('❌ Ambos métodos de ejecución fallaron:', errorInfo);\n    return [errorInfo];\n  }\n}"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2528,
+        2928
+      ],
+      "id": "4565f428-ceaa-4120-a005-7b95de4627c8",
+      "name": "Chunks"
+    },
+    {
+      "parameters": {
+        "jsCode": "// CÓDIGO PARA NODO CODE EN N8N\n// Transforma cada item con información dispersa en un item con texto organizado\n\n// Configuración - Puedes modificar estas opciones\nconst CONFIG = {\n  // Separadores para diferentes secciones\n  sectionSeparator: '\\n\\n',\n  fieldSeparator: '\\n',\n  arraySeparator: ', ',\n  \n  // Formato de salida: 'paragraph', 'structured', 'detailed'\n  outputFormat: 'structured',\n  \n  // Si incluir encabezados de sección\n  includeHeaders: true,\n  \n  // Si mostrar campos vacíos\n  showEmptyFields: false,\n  \n  // Campos a excluir del texto\n  excludeFields: ['timestamp'],\n  \n  // Orden de secciones (si no se especifica, usa el orden original)\n  sectionOrder: ['id', 'type', 'content', 'metadata', 'brands'],\n  \n  // Si mantener los campos originales además del texto\n  keepOriginalFields: true\n};\n\n// Función para formatear valores según su tipo\nfunction formatValue(key, value) {\n  if (value === null || value === undefined) {\n    return CONFIG.showEmptyFields ? `${key}: (vacío)` : '';\n  }\n  \n  if (Array.isArray(value)) {\n    if (value.length === 0) {\n      return CONFIG.showEmptyFields ? `${key}: (sin elementos)` : '';\n    }\n    return `${key}: ${value.join(CONFIG.arraySeparator)}`;\n  }\n  \n  if (typeof value === 'object') {\n    return formatObject(key, value);\n  }\n  \n  if (typeof value === 'boolean') {\n    return `${key}: ${value ? 'Sí' : 'No'}`;\n  }\n  \n  if (typeof value === 'number') {\n    return `${key}: ${value}`;\n  }\n  \n  return `${key}: ${value}`;\n}\n\n// Función para formatear objetos anidados\nfunction formatObject(parentKey, obj, level = 0) {\n  const indent = '  '.repeat(level);\n  const lines = [];\n  \n  if (CONFIG.includeHeaders && level === 0) {\n    lines.push(`${parentKey.toUpperCase()}:`);\n  }\n  \n  Object.entries(obj).forEach(([key, value]) => {\n    if (CONFIG.excludeFields.includes(key)) return;\n    \n    if (Array.isArray(value)) {\n      if (value.length > 0 || CONFIG.showEmptyFields) {\n        const formattedValue = value.length > 0 ? value.join(CONFIG.arraySeparator) : '(sin elementos)';\n        lines.push(`${indent}${key}: ${formattedValue}`);\n      }\n    } else if (typeof value === 'object' && value !== null) {\n      lines.push(formatObject(key, value, level + 1));\n    } else {\n      if (value !== null && value !== undefined && value !== '' || CONFIG.showEmptyFields) {\n        lines.push(`${indent}${key}: ${value}`);\n      }\n    }\n  });\n  \n  return lines.filter(line => line.trim()).join(CONFIG.fieldSeparator);\n}\n\n// Función para crear texto organizado según el formato\nfunction createOrganizedText(item) {\n  const sections = [];\n  \n  // Determinar qué campos procesar y en qué orden\n  const fieldsToProcess = CONFIG.sectionOrder.length > 0 \n    ? CONFIG.sectionOrder.filter(field => item.hasOwnProperty(field))\n    : Object.keys(item).filter(key => !CONFIG.excludeFields.includes(key));\n  \n  // Agregar campos que no están en sectionOrder al final\n  const remainingFields = Object.keys(item).filter(key => \n    !CONFIG.excludeFields.includes(key) && \n    !fieldsToProcess.includes(key)\n  );\n  fieldsToProcess.push(...remainingFields);\n  \n  // Procesar cada campo\n  fieldsToProcess.forEach(key => {\n    const value = item[key];\n    const formattedSection = formatValue(key, value);\n    \n    if (formattedSection) {\n      sections.push(formattedSection);\n    }\n  });\n  \n  // Formatear según el tipo de salida configurado\n  switch (CONFIG.outputFormat) {\n    case 'paragraph':\n      return sections.join('. ') + '.';\n      \n    case 'structured':\n      return sections.join(CONFIG.sectionSeparator);\n      \n    case 'detailed':\n      const header = `=== ITEM ${item.id || 'SIN ID'} ===`;\n      const content = sections.join(CONFIG.sectionSeparator);\n      const footer = `=== FIN DEL ITEM ===`;\n      return [header, content, footer].join(CONFIG.sectionSeparator);\n      \n    default:\n      return sections.join(CONFIG.sectionSeparator);\n  }\n}\n\n// Función para generar un resumen del item\nfunction generateSummary(item) {\n  const summary = [];\n  \n  // Información básica\n  if (item.id) summary.push(`ID: ${item.id}`);\n  if (item.type) summary.push(`Tipo: ${item.type}`);\n  \n  // Contar elementos importantes\n  const stats = [];\n  Object.entries(item).forEach(([key, value]) => {\n    if (Array.isArray(value) && value.length > 0) {\n      stats.push(`${value.length} ${key}`);\n    }\n  });\n  \n  if (stats.length > 0) {\n    summary.push(`Contiene: ${stats.join(', ')}`);\n  }\n  \n  return summary.join(' | ');\n}\n\n// Función principal para procesar un item\nfunction processItem(item) {\n  try {\n    // Crear el texto organizado\n    const organizedText = createOrganizedText(item);\n    \n    // Crear el resultado\n    const result = {\n      organized_text: organizedText,\n      summary: generateSummary(item),\n      processed_at: new Date().toISOString(),\n      original_fields_count: Object.keys(item).length\n    };\n    \n    // Mantener campos originales si está configurado\n    if (CONFIG.keepOriginalFields) {\n      Object.entries(item).forEach(([key, value]) => {\n        if (!result.hasOwnProperty(key)) {\n          result[key] = value;\n        }\n      });\n    }\n    \n    return result;\n    \n  } catch (error) {\n    console.error('Error procesando item:', error);\n    return {\n      organized_text: 'Error al procesar la información de este item',\n      error_message: error.message,\n      original_item: item,\n      processed_at: new Date().toISOString()\n    };\n  }\n}\n\n// CÓDIGO PRINCIPAL PARA N8N\ntry {\n  // Obtener todos los items de entrada\n  const inputItems = $input.all();\n  \n  // Procesar cada item individualmente\n  const processedItems = inputItems.map((item, index) => {\n    const processedData = processItem(item.json || {});\n    \n    return {\n      json: processedData,\n      pairedItem: item.pairedItem || index\n    };\n  });\n  \n  // Retornar todos los items procesados (mismo número que la entrada)\n  return processedItems;\n  \n} catch (error) {\n  console.error('Error general en el procesamiento:', error);\n  \n  // En caso de error, retornar información del error\n  return [{\n    json: {\n      error: 'Error general en el procesamiento',\n      error_message: error.message,\n      total_input_items: $input.all().length,\n      timestamp: new Date().toISOString()\n    }\n  }];\n}\n\n/*\nEJEMPLOS DE CONFIGURACIÓN:\n\n// CONFIGURACIÓN 1: Formato párrafo simple\nconst CONFIG = {\n  sectionSeparator: '. ',\n  fieldSeparator: ', ',\n  arraySeparator: ', ',\n  outputFormat: 'paragraph',\n  includeHeaders: false,\n  showEmptyFields: false,\n  excludeFields: ['timestamp'],\n  sectionOrder: [],\n  keepOriginalFields: false\n};\n\n// CONFIGURACIÓN 2: Formato estructurado detallado\nconst CONFIG = {\n  sectionSeparator: '\\n\\n',\n  fieldSeparator: '\\n',\n  arraySeparator: ' | ',\n  outputFormat: 'detailed',\n  includeHeaders: true,\n  showEmptyFields: true,\n  excludeFields: [],\n  sectionOrder: ['id', 'type', 'content', 'metadata', 'brands'],\n  keepOriginalFields: true\n};\n\n// CONFIGURACIÓN 3: Formato compacto\nconst CONFIG = {\n  sectionSeparator: ' // ',\n  fieldSeparator: ', ',\n  arraySeparator: '; ',\n  outputFormat: 'structured',\n  includeHeaders: false,\n  showEmptyFields: false,\n  excludeFields: ['timestamp', 'metadata'],\n  sectionOrder: ['content', 'brands'],\n  keepOriginalFields: false\n};\n*/"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        2688,
+        2928
+      ],
+      "id": "e9358b72-9d72-4b29-a9a0-17bb0fd3794f",
+      "name": "Agrupar Items"
+    },
+    {
+      "parameters": {
+        "jsCode": "// ANALIZADOR PROFUNDO DE CSV - VERSIÓN CORREGIDA\nconst rows = $input.all();\nconst totalRows = rows.length;\n\n// Inicializar estructura de análisis\nconst camposAnalisis = {};\nconst patronesDetectados = {\n  identificadores: [],\n  nombres: [],\n  precios: [],\n  cantidades: [],\n  categorias: [],\n  descripciones: [],\n  calificaciones: [],\n  estados: [],\n  fechas: [],\n  urls: [],\n  emails: [],\n  marcas: [],\n  medidas: [] // NUEVO: para serving_size, dimensions, etc.\n};\n\n// Función mejorada para validar si es fecha\nconst esFechaValida = (valor) => {\n  if (typeof valor !== 'string') return false;\n  \n  // Patrones comunes de fecha\n  const patronesFecha = [\n    /^\\d{4}-\\d{2}-\\d{2}/, // YYYY-MM-DD\n    /^\\d{2}\\/\\d{2}\\/\\d{4}/, // DD/MM/YYYY o MM/DD/YYYY\n    /^\\d{2}-\\d{2}-\\d{4}/, // DD-MM-YYYY\n    /^\\d{4}\\/\\d{2}\\/\\d{2}/, // YYYY/MM/DD\n  ];\n  \n  // Verificar si coincide con algún patrón\n  const coincidePatron = patronesFecha.some(patron => patron.test(valor));\n  if (!coincidePatron) return false;\n  \n  // Intentar parsear como fecha\n  const fecha = new Date(valor);\n  return !isNaN(fecha.getTime()) && fecha.getFullYear() > 1900 && fecha.getFullYear() < 2100;\n};\n\n// Función para detectar si es una medida/porción\nconst esMedidaOPorcion = (valores) => {\n  const muestras = valores.filter(v => v !== null && v !== undefined && v !== '').slice(0, 20);\n  \n  // Patrones de medidas comunes\n  const patronesMedida = [\n    /^\\d+\\s*(g|kg|mg|ml|l|oz|lb|tabletas?|cápsulas?|caps?|pills?|scoops?|servings?|sobres?|porciones?)$/i,\n    /^\\d+\\s*-\\s*\\d+\\s*(g|kg|mg|ml|l|oz|lb|tabletas?|cápsulas?|caps?|pills?|scoops?|servings?|sobres?|porciones?)$/i,\n    /^(one|two|three|four|five|\\d+)\\s+(tablet|capsule|cap|pill|scoop|serving|sobre|porcion)/i\n  ];\n  \n  // Verificar si la mayoría coincide con patrones de medida\n  const coincidencias = muestras.filter(v => \n    typeof v === 'string' && patronesMedida.some(patron => patron.test(v.trim()))\n  );\n  \n  return coincidencias.length > muestras.length * 0.5;\n};\n\n// Función mejorada de detección de tipo de contenido\nconst detectarTipoContenido = (campo, valores) => {\n  const campoLower = campo.toLowerCase();\n  const muestras = valores.filter(v => v !== null && v !== undefined && v !== '').slice(0, 20);\n  \n  // PRIORIDAD 1: Detectar por nombre de campo (mejorado)\n  \n  // NUEVO: Detectar medidas/porciones ANTES que precios\n  if (campoLower.match(/\\b(serving|portion|dose|dosage|size|medida|porcion|dosis)\\b/) ||\n      campoLower.match(/\\b(serving_size|portion_size|dose_size)\\b/)) {\n    return 'medida';\n  }\n  \n  // Identificadores\n  if (campoLower.match(/\\b(^id$|_id$|^id_|_id_|code|sku|key|identifier)\\b/)) {\n    return 'identificador';\n  }\n  \n  // Nombres y títulos\n  if (campoLower.match(/\\b(name|title|nombre|product_name|item_name)\\b/)) {\n    return 'nombre';\n  }\n  \n  // Precios - MEJORADO: excluir explícitamente serving_size y similares\n  if (campoLower.match(/\\b(price|cost|precio|amount|total|value)\\b/) && \n      !campoLower.match(/\\b(review|num_|count|serving|portion|dose|size)\\b/)) {\n    return 'precio';\n  }\n  \n  // Cantidades y conteos\n  if (campoLower.match(/\\b(quantity|stock|inventory|cantidad|count|num_|number_of)\\b/) ||\n      campoLower.match(/\\b(num_reviews|review_count|total_reviews)\\b/)) {\n    return 'cantidad';\n  }\n  \n  // Categorías\n  if (campoLower.match(/\\b(category|categories|type|clase|group|tipo)\\b/)) {\n    return 'categoria';\n  }\n  \n  // Descripciones\n  if (campoLower.match(/\\b(description|details|info|about|summary)\\b/)) {\n    return 'descripcion';\n  }\n  \n  // Calificaciones\n  if (campoLower.match(/\\b(rating|score|stars|review|calificacion|puntuacion)\\b/) &&\n      !campoLower.match(/\\b(num_|count|total)\\b/)) {\n    return 'calificacion';\n  }\n  \n  // Estados\n  if (campoLower.match(/\\b(status|state|available|active|enabled|is_)\\b/)) {\n    return 'estado';\n  }\n  \n  // Fechas\n  if (campoLower.match(/\\b(date|time|created|updated|modified|fecha|_at$)\\b/)) {\n    return 'fecha';\n  }\n  \n  // Marcas\n  if (campoLower.match(/\\b(brand|marca|manufacturer|company)\\b/)) {\n    return 'marca';\n  }\n  \n  // URLs\n  if (campoLower.match(/\\b(url|link|website|site)\\b/)) {\n    return 'url';\n  }\n  \n  // Emails\n  if (campoLower.match(/\\b(email|mail|correo|contact)\\b/)) {\n    return 'email';\n  }\n  \n  // PRIORIDAD 2: Detectar por contenido si no se detectó por nombre\n  if (muestras.length > 0) {\n    // NUEVO: Verificar si son medidas/porciones\n    if (esMedidaOPorcion(muestras)) {\n      return 'medida';\n    }\n    \n    // Verificar si son URLs\n    if (muestras.every(v => typeof v === 'string' && v.match(/^https?:\\/\\//))) {\n      return 'url';\n    }\n    \n    // Verificar si son emails\n    if (muestras.every(v => typeof v === 'string' && v.match(/^[^\\s@]+@[^\\s@]+\\.[^\\s@]+$/))) {\n      return 'email';\n    }\n    \n    // Verificar si son fechas (mejorado)\n    const todasFechas = muestras.every(v => esFechaValida(v));\n    if (todasFechas) {\n      return 'fecha';\n    }\n    \n    // Verificar si son identificadores (números enteros secuenciales o códigos)\n    const todosEnteros = muestras.every(v => Number.isInteger(Number(v)));\n    const valoresNumericos = muestras.map(v => Number(v)).filter(n => !isNaN(n));\n    if (todosEnteros && valoresNumericos.length > 0) {\n      const min = Math.min(...valoresNumericos);\n      const max = Math.max(...valoresNumericos);\n      // Si parece una secuencia de IDs\n      if (min >= 0 && max < 1000000 && (max - min) < muestras.length * 100) {\n        // Verificar si el campo no fue ya clasificado como cantidad\n        if (!campoLower.match(/\\b(stock|quantity|count|num_)\\b/)) {\n          return 'identificador';\n        }\n      }\n    }\n    \n    // Verificar si son precios (números con hasta 2 decimales)\n    // MEJORADO: Excluir si contienen unidades de medida\n    const todosPreciosValidos = muestras.every(v => {\n      const valorStr = v.toString();\n      // Excluir si contiene unidades de medida\n      if (valorStr.match(/\\b(g|kg|mg|ml|l|oz|lb|tabletas?|cápsulas?|caps?|pills?|scoops?|servings?)\\b/i)) {\n        return false;\n      }\n      const num = parseFloat(v);\n      if (isNaN(num)) return false;\n      const decimales = valorStr.split('.')[1];\n      return !decimales || decimales.length <= 2;\n    });\n    \n    if (todosPreciosValidos && muestras.some(v => v.toString().includes('.'))) {\n      return 'precio';\n    }\n    \n    // Verificar si son cantidades (enteros positivos)\n    if (todosEnteros && valoresNumericos.every(n => n >= 0)) {\n      return 'cantidad';\n    }\n    \n    // Verificar si son calificaciones (números entre 0-5 o 0-10)\n    const todosEnRango = valoresNumericos.every(n => n >= 0 && n <= 10);\n    const tieneDecimales = muestras.some(v => v.toString().includes('.'));\n    if (todosEnRango && tieneDecimales && valoresNumericos.length > 0) {\n      const maxVal = Math.max(...valoresNumericos);\n      if (maxVal <= 5 || maxVal === 10) {\n        return 'calificacion';\n      }\n    }\n    \n    // Verificar si son booleanos o estados\n    const estadosValidos = ['true','false','yes','no','si','no','1','0','active','inactive','available','unavailable'];\n    if (muestras.every(v => estadosValidos.includes(v.toString().toLowerCase()))) {\n      return 'estado';\n    }\n  }\n  \n  return 'general';\n};\n\n// Analizar cada campo\nrows.forEach(({ json }, index) => {\n  Object.entries(json).forEach(([campo, valor]) => {\n    // Inicializar estructura para el campo si no existe\n    if (!camposAnalisis[campo]) {\n      camposAnalisis[campo] = {\n        nombre: campo,\n        tiposJS: new Set(),\n        valoresUnicos: new Set(),\n        longitudPromedio: 0,\n        longitudMaxima: 0,\n        longitudMinima: Infinity,\n        ejemplos: [],\n        nulos: 0,\n        vacios: 0,\n        patrones: new Set(),\n        rangoNumerico: { min: Infinity, max: -Infinity },\n        tipoContenido: null,\n        frecuenciaLlenado: 0\n      };\n    }\n    \n    const analisis = camposAnalisis[campo];\n    \n    // Analizar valor\n    if (valor === null || valor === undefined) {\n      analisis.nulos++;\n    } else if (valor === '') {\n      analisis.vacios++;\n    } else {\n      analisis.frecuenciaLlenado++;\n      \n      // Tipo JavaScript\n      analisis.tiposJS.add(typeof valor);\n      \n      // Valores únicos (limitar a 100 para memoria)\n      if (analisis.valoresUnicos.size < 100) {\n        analisis.valoresUnicos.add(valor);\n      }\n      \n      // Ejemplos (máximo 5, diversos)\n      if (analisis.ejemplos.length < 5) {\n        const valorStr = String(valor);\n        if (!analisis.ejemplos.some(e => String(e) === valorStr)) {\n          analisis.ejemplos.push(valor);\n        }\n      }\n      \n      // Análisis de strings\n      if (typeof valor === 'string') {\n        const longitud = valor.length;\n        analisis.longitudPromedio += longitud;\n        analisis.longitudMaxima = Math.max(analisis.longitudMaxima, longitud);\n        analisis.longitudMinima = Math.min(analisis.longitudMinima, longitud);\n        \n        // Detectar patrones\n        if (valor.match(/^\\d+$/)) analisis.patrones.add('solo_digitos');\n        if (valor.match(/^[A-Z0-9]+$/)) analisis.patrones.add('mayusculas_numeros');\n        if (valor.match(/@/)) analisis.patrones.add('contiene_arroba');\n        if (valor.match(/https?:\\/\\//)) analisis.patrones.add('contiene_url');\n        if (valor.match(/^\\$?\\d+\\.?\\d*$/)) analisis.patrones.add('formato_precio');\n        if (esFechaValida(valor)) analisis.patrones.add('formato_fecha');\n        // NUEVO: Detectar formato de medida\n        if (valor.match(/^\\d+\\s*(g|kg|mg|ml|l|oz|lb|tabletas?|cápsulas?|caps?|pills?|scoops?|servings?|sobres?|porciones?)$/i)) {\n          analisis.patrones.add('formato_medida');\n        }\n      }\n      \n      // Análisis numérico\n      const num = Number(valor);\n      if (!isNaN(num) && valor !== '') {\n        analisis.rangoNumerico.min = Math.min(analisis.rangoNumerico.min, num);\n        analisis.rangoNumerico.max = Math.max(analisis.rangoNumerico.max, num);\n      }\n    }\n  });\n});\n\n// Calcular estadísticas finales y clasificar campos\nconst camposFinales = Object.entries(camposAnalisis).map(([campo, analisis]) => {\n  // Calcular longitud promedio\n  if (analisis.frecuenciaLlenado > 0) {\n    analisis.longitudPromedio = analisis.longitudPromedio / analisis.frecuenciaLlenado;\n  }\n  \n  // Calcular porcentaje de completitud\n  const completitud = (analisis.frecuenciaLlenado / totalRows) * 100;\n  \n  // Determinar tipo de contenido\n  const tipoContenido = detectarTipoContenido(campo, Array.from(analisis.valoresUnicos));\n  analisis.tipoContenido = tipoContenido;\n  \n  // Agregar a patrones detectados\n  switch(tipoContenido) {\n    case 'identificador': patronesDetectados.identificadores.push(campo); break;\n    case 'nombre': patronesDetectados.nombres.push(campo); break;\n    case 'precio': patronesDetectados.precios.push(campo); break;\n    case 'cantidad': patronesDetectados.cantidades.push(campo); break;\n    case 'categoria': patronesDetectados.categorias.push(campo); break;\n    case 'descripcion': patronesDetectados.descripciones.push(campo); break;\n    case 'calificacion': patronesDetectados.calificaciones.push(campo); break;\n    case 'estado': patronesDetectados.estados.push(campo); break;\n    case 'fecha': patronesDetectados.fechas.push(campo); break;\n    case 'marca': patronesDetectados.marcas.push(campo); break;\n    case 'medida': patronesDetectados.medidas.push(campo); break;\n  }\n  \n  // Determinar si es categórico\n  const esCategorico = analisis.valoresUnicos.size < 50 && \n                      analisis.valoresUnicos.size < (totalRows * 0.5) &&\n                      tipoContenido !== 'identificador' &&\n                      tipoContenido !== 'nombre';\n  \n  return {\n    campo: campo,\n    tipoContenido: tipoContenido,\n    tiposJavaScript: Array.from(analisis.tiposJS),\n    completitud: completitud.toFixed(1) + '%',\n    valoresUnicos: analisis.valoresUnicos.size,\n    esCategorico: esCategorico,\n    ejemplos: analisis.ejemplos.slice(0, 3),\n    estadisticas: {\n      nulos: analisis.nulos,\n      vacios: analisis.vacios,\n      llenos: analisis.frecuenciaLlenado\n    },\n    ...(analisis.longitudPromedio > 0 && {\n      longitudTexto: {\n        promedio: Math.round(analisis.longitudPromedio),\n        minima: analisis.longitudMinima === Infinity ? 0 : analisis.longitudMinima,\n        maxima: analisis.longitudMaxima\n      }\n    }),\n    ...(analisis.rangoNumerico.min !== Infinity && {\n      rangoNumerico: {\n        minimo: analisis.rangoNumerico.min,\n        maximo: analisis.rangoNumerico.max\n      }\n    }),\n    patrones: Array.from(analisis.patrones)\n  };\n}).sort((a, b) => a.campo.localeCompare(b.campo));\n\n// Generar resumen ejecutivo\nconst resumenEjecutivo = {\n  totalRegistros: totalRows,\n  totalCampos: camposFinales.length,\n  camposIdentificados: {\n    identificadores: patronesDetectados.identificadores,\n    nombres: patronesDetectados.nombres,\n    precios: patronesDetectados.precios,\n    cantidades: patronesDetectados.cantidades,\n    categorias: patronesDetectados.categorias,\n    descripciones: patronesDetectados.descripciones,\n    calificaciones: patronesDetectados.calificaciones,\n    estados: patronesDetectados.estados,\n    fechas: patronesDetectados.fechas,\n    marcas: patronesDetectados.marcas,\n    medidas: patronesDetectados.medidas\n  },\n  camposCategoricos: camposFinales.filter(c => c.esCategorico).map(c => c.campo),\n  camposNumericos: camposFinales.filter(c => c.rangoNumerico).map(c => c.campo),\n  camposTextoLargo: camposFinales.filter(c => c.longitudTexto?.maxima > 100).map(c => c.campo),\n  completitudPromedio: (camposFinales.reduce((acc, c) => acc + parseFloat(c.completitud), 0) / camposFinales.length).toFixed(1) + '%'\n};\n\n// Generar reporte en texto para el LLM\nconst reporteTexto = `\nANÁLISIS DE ESTRUCTURA CSV\n==========================\n\nResumen General:\n- Total de registros: ${totalRows}\n- Total de campos: ${camposFinales.length}\n- Completitud promedio: ${resumenEjecutivo.completitudPromedio}\n\nCampos Detectados por Tipo:\n${Object.entries(resumenEjecutivo.camposIdentificados)\n  .filter(([tipo, campos]) => campos.length > 0)\n  .map(([tipo, campos]) => `- ${tipo}: ${campos.join(', ')}`)\n  .join('\\n')}\n\nCampos Categóricos (ideales para agrupación):\n${resumenEjecutivo.camposCategoricos.join(', ') || 'Ninguno detectado'}\n\nCampos Numéricos (con rangos):\n${camposFinales\n  .filter(c => c.rangoNumerico)\n  .map(c => `- ${c.campo}: ${c.rangoNumerico.minimo} a ${c.rangoNumerico.maximo}`)\n  .join('\\n') || 'Ninguno detectado'}\n\nCampos de Texto Largo (>100 caracteres):\n${resumenEjecutivo.camposTextoLargo.join(', ') || 'Ninguno detectado'}\n\nDetalles por Campo:\n${camposFinales\n  .map(c => `\n${c.campo}:\n  - Tipo detectado: ${c.tipoContenido}\n  - Completitud: ${c.completitud}\n  - Valores únicos: ${c.valoresUnicos}\n  - Ejemplos: ${c.ejemplos.map(e => typeof e === 'string' ? `\"${e}\"` : e).join(', ')}`)\n  .join('\\n')}\n`;\n\n// Retornar toda la información\nreturn [{\n  json: {\n    // Lista simple de campos (para compatibilidad con el prompt original)\n    campos: camposFinales.map(c => c.campo),\n    \n    // Análisis completo\n    analisisCompleto: {\n      resumen: resumenEjecutivo,\n      camposDetallados: camposFinales,\n      reporteTexto: reporteTexto\n    }\n  }\n}];"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1344,
+        2928
+      ],
+      "id": "75103915-96db-4fd7-8e73-156416a48ce6",
+      "name": "Transformador de CSV"
+    },
+    {
+      "parameters": {
+        "fieldsToAggregate": {
+          "fieldToAggregate": [
+            {
+              "fieldToAggregate": "product_id"
+            },
+            {
+              "fieldToAggregate": "product_name"
+            },
+            {
+              "fieldToAggregate": "category"
+            },
+            {
+              "fieldToAggregate": "brand"
+            },
+            {
+              "fieldToAggregate": "price"
+            },
+            {
+              "fieldToAggregate": "stock_quantity"
+            },
+            {
+              "fieldToAggregate": "description"
+            },
+            {
+              "fieldToAggregate": "rating"
+            },
+            {
+              "fieldToAggregate": "num_reviews"
+            },
+            {
+              "fieldToAggregate": "is_available"
+            },
+            {
+              "fieldToAggregate": "created_at"
+            },
+            {
+              "fieldToAggregate": "last_restock_date"
+            },
+            {
+              "fieldToAggregate": "serving_size"
+            },
+            {
+              "fieldToAggregate": "flavor"
+            },
+            {
+              "fieldToAggregate": "goals"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [
+        2016,
+        2608
+      ],
+      "id": "3f1b0c3e-71b5-40a8-87e2-22155ce7d436",
+      "name": "Aggregate"
+    },
+    {
+      "parameters": {
+        "fieldsToSummarize": {
+          "values": [
+            {
+              "aggregation": "concatenate",
+              "field": "product_name"
+            },
+            {
+              "aggregation": "concatenate",
+              "field": "category"
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.summarize",
+      "typeVersion": 1.1,
+      "position": [
+        2256,
+        2608
+      ],
+      "id": "fd6d116f-e623-4488-8135-ee376b79f32c",
+      "name": "Summarize2"
+    },
+    {
+      "parameters": {
+        "operation": "download",
+        "fileId": {
+          "__rl": true,
+          "value": "1n7K2YyE2Kb2kmcLtfGzi_U-tbDactc0e",
+          "mode": "list",
+          "cachedResultName": "ordenanzas_municipales.md",
+          "cachedResultUrl": "https://drive.google.com/file/d/1n7K2YyE2Kb2kmcLtfGzi_U-tbDactc0e/view?usp=drivesdk"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.googleDrive",
+      "typeVersion": 3,
+      "position": [
+        1248,
+        2416
+      ],
+      "id": "a1f7c725-7a01-4e51-aeb8-667f63635913",
+      "name": "Google Drive2",
+      "credentials": {
+        "googleDriveOAuth2Api": {
+          "id": "RLnwwTctbVu2NRix",
+          "name": "Google Drive account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "insert",
+        "memoryKey": {
+          "__rl": true,
+          "value": "ordenanzas2",
+          "mode": "list"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        3456,
+        2384
+      ],
+      "id": "a555a7c1-2efe-49d3-a4c3-3a48449425fa",
+      "name": "Simple Vector Store"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "={{ $json.body.query }}",
+        "options": {
+          "systemMessage": "Eres un asistente virtual de la Municipalidad de San Miguel. Usa la base documental para responder.\nPara responder, ten en cuenta los siguientes requisitos:\n1. Debes manejar correctamente las ambiguedades, no des informacion sin estar totalmente seguro de lo que desea el usuario, corrobora lo que desea haciendole las preguntas necesarias.\n2. No des informacion demasiado extensa, solo responde especificamente lo que te preguntan. No des informacion extra a la que se te solicita.\n3. Si no encuentras información exacta, responde: \"Por favor contacte a un funcionario en línea al número 0800-123-456\"."
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2,
+      "position": [
+        2880,
+        1152
+      ],
+      "id": "070abc6c-e76f-42e9-b7a6-541643db9c46",
+      "name": "AI Agent"
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "gpt-5-mini",
+          "mode": "list",
+          "cachedResultName": "gpt-5-mini"
+        },
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        2464,
+        1344
+      ],
+      "id": "41f8b5e4-1157-4e5a-89d5-9910e6c8c355",
+      "name": "OpenAI Chat Model3",
+      "credentials": {
+        "openAiApi": {
+          "id": "FnGS5Jhx56bncQXg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sessionIdType": "customKey",
+        "sessionKey": "={{ $json.body.session_id }}"
+      },
+      "type": "@n8n/n8n-nodes-langchain.memoryBufferWindow",
+      "typeVersion": 1.3,
+      "position": [
+        2752,
+        1488
+      ],
+      "id": "5a253f81-fbf1-4aa2-92f7-815fe0f94cbc",
+      "name": "Simple Memory"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Usa esta herramienta para acceder a \"GUÍA DE TRÁMITES Y SERVICIOS MUNICIPALES\"",
+        "memoryKey": {
+          "__rl": true,
+          "value": "tramites2",
+          "mode": "list",
+          "cachedResultName": "tramites2"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        3120,
+        1456
+      ],
+      "id": "21d1249c-1247-43cc-ae37-350927d21bbc",
+      "name": "Simple Vector Store2"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3072,
+        1648
+      ],
+      "id": "04ff9e48-b79d-4b5b-b929-99c2665a1f65",
+      "name": "Embeddings OpenAI2",
+      "credentials": {
+        "openAiApi": {
+          "id": "FnGS5Jhx56bncQXg",
+          "name": "OpenAi account"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "municipalidad",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        2576,
+        1104
+      ],
+      "id": "bad4e97b-4f1e-4785-9e1c-fa47bfbe2e48",
+      "name": "Webhook",
+      "webhookId": "2c624762-b982-4c94-a792-ee33f5e09b4a"
+    },
+    {
+      "parameters": {
+        "options": {
+          "responseCode": 200,
+          "responseKey": ""
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        3280,
+        1216
+      ],
+      "id": "6e4cc50f-a3e7-4a31-a182-4599b2d8edf1",
+      "name": "Respond to Webhook"
+    },
+    {
+      "parameters": {
+        "mode": "retrieve-as-tool",
+        "toolDescription": "Usa esta herramienta para acceder a \"REGISTRO DE ORDENANZAS MUNICIPALES\"",
+        "memoryKey": {
+          "__rl": true,
+          "value": "ordenanzas2",
+          "mode": "list",
+          "cachedResultName": "ordenanzas2"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.vectorStoreInMemory",
+      "typeVersion": 1.3,
+      "position": [
+        3440,
+        1456
+      ],
+      "id": "ccbfd51f-2fb3-4406-8fa3-438b7eb8e053",
+      "name": "Simple Vector Store3"
+    },
+    {
+      "parameters": {
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.embeddingsOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        3536,
+        1648
+      ],
+      "id": "fecb46e5-77da-4c20-aada-3f390342d0e7",
+      "name": "Embeddings OpenAI3",
+      "credentials": {
+        "openAiApi": {
+          "id": "FnGS5Jhx56bncQXg",
+          "name": "OpenAi account"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Embeddings OpenAI": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          },
+          {
+            "node": "Simple Vector Store",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Default Data Loader": {
+      "ai_document": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "ai_document",
+            "index": 0
+          },
+          {
+            "node": "Simple Vector Store",
+            "type": "ai_document",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize": {
+      "main": [
+        [
+          {
+            "node": "Simple Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Add Context": {
+      "main": [
+        [
+          {
+            "node": "Summarize",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Character Text Splitter": {
+      "ai_textSplitter": [
+        [
+          {
+            "node": "Default Data Loader",
+            "type": "ai_textSplitter",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from PDF": {
+      "main": [
+        [
+          {
+            "node": "PDF TO DATA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "PDF TO DATA": {
+      "main": [
+        [
+          {
+            "node": "Document Data",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "CR SWITCH": {
+      "main": [
+        [
+          {
+            "node": "Extract from PDF",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from TXT",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from File",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Extract from TXT",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Document Data": {
+      "main": [
+        [
+          {
+            "node": "Recursive Splitter",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Recursive Splitter": {
+      "main": [
+        [
+          {
+            "node": "Split Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Chunks": {
+      "main": [
+        [
+          {
+            "node": "Add Context",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "Add Context",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When clicking ‘Test workflow’": {
+      "main": [
+        [
+          {
+            "node": "Google Drive2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from TXT": {
+      "main": [
+        [
+          {
+            "node": "PDF TO DATA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Extract from File": {
+      "main": [
+        [
+          {
+            "node": "Aggregate",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields2": {
+      "main": [
+        [
+          {
+            "node": "Chunks",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model2": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM ANALISTA",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Edit Fields4": {
+      "main": [
+        [
+          {
+            "node": "LLM CODIGO",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Anthropic Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "LLM CODIGO",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Out": {
+      "main": [
+        [
+          {
+            "node": "Summarize1",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Summarize1": {
+      "main": [
+        [
+          {
+            "node": "Supabase Vector Store",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM ANALISTA": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields4",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "LLM CODIGO": {
+      "main": [
+        [
+          {
+            "node": "Edit Fields2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Chunks": {
+      "main": [
+        [
+          {
+            "node": "Agrupar Items",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Agrupar Items": {
+      "main": [
+        [
+          {
+            "node": "Split Out",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Transformador de CSV": {
+      "main": [
+        [
+          {
+            "node": "LLM ANALISTA",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate": {
+      "main": [
+        [
+          {
+            "node": "Summarize2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Google Drive2": {
+      "main": [
+        [
+          {
+            "node": "CR SWITCH",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model3": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Memory": {
+      "ai_memory": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_memory",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Vector Store2": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI2": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Simple Vector Store2",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Simple Vector Store3": {
+      "ai_tool": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_tool",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Embeddings OpenAI3": {
+      "ai_embedding": [
+        [
+          {
+            "node": "Simple Vector Store3",
+            "type": "ai_embedding",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": true,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "64e67f46-be21-4661-890b-7a553e822708",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "22c07b1f210778c35286fa3bb5e03cbbfa8bada783456421edc4182c21f0c0ce"
+  },
+  "id": "wn30BkV5hrKy9iXo",
+  "tags": []
+}

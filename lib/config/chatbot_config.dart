@@ -1,7 +1,7 @@
 class ChatbotConfig {
   // n8n Webhook Configuration
   // Replace these URLs with your actual n8n instance URLs
-  static const String n8nBaseUrl = 'http://192.168.1.8:5678'; // Change to your n8n instance URL
+  static const String n8nBaseUrl = 'http://192.168.1.20:5678'; // Change to your n8n instance URL
  // static const String municipalityChatbotWebhook = '/webhook-test/municipalidad';
   static const String municipalityChatbotWebhook = '/webhook/municipalidad';
   static const String escalationWebhook = '/webhook/escalate-to-human';
